@@ -1,0 +1,3 @@
+/media/fang/文件/Projects/ImageServer/build/CMakeFiles/rebuild_cache.dir
+/media/fang/文件/Projects/ImageServer/build/CMakeFiles/edit_cache.dir
+/media/fang/文件/Projects/ImageServer/build/CMakeFiles/imSer.dir
