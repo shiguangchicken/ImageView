@@ -1,3 +1,0 @@
-/media/fang/文件/Projects/ImageClient/build/CMakeFiles/edit_cache.dir
-/media/fang/文件/Projects/ImageClient/build/CMakeFiles/rebuild_cache.dir
-/media/fang/文件/Projects/ImageClient/build/CMakeFiles/imCli.dir
