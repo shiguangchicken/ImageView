@@ -5,6 +5,8 @@
 #include <string>
 #include <stdint.h>
 #include <fstream>
+#include <boost/filesystem.hpp>
+#include <boost/thread/thread.hpp>
 
 #define DATE_TIME_DIR_LEN 10
 #define DATE_TIME_MEMBER_NUM 7
@@ -42,6 +44,9 @@ class Path
 private:
     /* data */
     std::string m_currentPath; /*  */ 
+    unsigned short m_pos; //记录当前读取文件的位置
+    std::vector<std::string> m_currentPathFiles;
+    std::vector<std::string> m_currentPathDirs;
 public:
     explicit Path(std::string &rootDir);
 
@@ -59,10 +64,10 @@ public:
     /* 查找文件所在绝对路径 */
     std::string findPath(string& fileName);
 
-    std::vector<std::string> getLeftFilesList();
+    std::vector<std::string> getNextFilesList(size_t num); //获取后面num个文件的名字
 
 private:
-    path findPathRecursive(path& p, string fileName);
+    boost::filesystem::path findPathRecursive(boost::filesystem::path& p, std::string fileName);
 
 };
 
@@ -104,18 +109,28 @@ private:
     
     // std::vector<uint8_t*> m_fileBuffers; /* 缓存的图片 */
 
-    std::queue<DataBuf> m_fileBuffers;
+    std::queue<DataBuf*> m_readBuffers; //读取的缓存图片
+
+    std::queue<DataBuf*> m_writeBuffers; //待写入的缓存图片
+
+    boost::thread::id m_threadId;
 
 public:
     ImageFileProcess(std::string &rootPath);
 
     ~ImageFileProcess();
 
-    int getOneImages(DataBuf& buf); /*获取 count数量 图片 */
+    DataBuf* getOneImage(); /*获取一张图片 */
 
+    int writeOneImage(DataBuf* pBuf);
+   
 private:
     int loadSomeImage(int count);
     
-    int fileRead(int count);
+    DataBuf* fileRead(string fileName); //读取文件
+
+    void fileWrite(DataBuf* pBuf, string fileName); //写文件 
+
+    void threadEntry();
 
 };

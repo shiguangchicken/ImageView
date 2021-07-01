@@ -1,7 +1,7 @@
 #include <sstream>
-#include <boost/filesystem.hpp>
 #include "../include/globle_def.h"
 #include "../include/image_file_process.h"
+#include <exception>
 
 using namespace std;
 using namespace boost::filesystem;
@@ -66,6 +66,20 @@ std::string DateTime::toString()
 Path::Path(std::string &rootDir)
 {
     m_currentPath = rootDir;
+    path p(m_currentPath);
+    if(exists(p))
+    {
+        if(is_directory(p))
+        {
+            for (directory_entry &i : directory_iterator(p))
+            {
+                if(is_regular_file(i.path()))
+                {
+                    m_currentPathFiles.push_back(i.path().native());
+                }
+            }        
+        }
+    }
 }
 
 string Path::getCurrentPath()
@@ -80,19 +94,7 @@ std::string Path::getPath(DateTime &dateTime)
 
 std::vector<std::string> Path::getFilesList()
 {
-    path p(m_currentPath);
-    vector<string> fileList;
-    if(is_directory(p))
-    {
-        for (directory_entry &i : directory_iterator(p))
-        {
-            if(is_regular_file(i.path()))
-            {
-                fileList.push_back(i.path().string());
-            }
-        }        
-    }
-    return fileList;
+    return m_currentPathFiles;
 }
 
 std::vector<std::string> Path::getDirList()
@@ -146,6 +148,23 @@ string Path::findPath(string& fileName)
     return res.native();
 }
 
+std::vector<std::string> Path::getNextFilesList(size_t num)
+{
+    vector<string> fileList;
+    if(num > m_currentPathFiles.size())
+    {
+        return fileList;
+    }
+    else if(m_pos + num >= m_currentPathFiles.size())
+    {
+        for (int i = m_currentPathFiles.size() - 1 - num; i < m_currentPathFiles.size(); i++)
+        {
+            fileList[i - m_currentPathFiles.size() + 1 + num] = m_currentPathFiles[i];
+        }
+        m_pos = m_currentPathFiles.size() - 1;
+    }
+}
+
 
 DataBuf::DataBuf(size_t size)
 {
@@ -187,6 +206,8 @@ DataBuf& DataBuf::operator=(DataBuf &&other)
 ImageFileProcess::ImageFileProcess(string &rootPath)
 {
     m_path = new Path(rootPath);
+    boost::thread th(boost::bind(&ImageFileProcess::threadEntry, this));
+    m_threadId = -1;
 }
 
 ImageFileProcess::~ImageFileProcess()
@@ -194,47 +215,94 @@ ImageFileProcess::~ImageFileProcess()
 
 }
 
-int ImageFileProcess::getOneImages(DataBuf& buf) /*获取 count数量 图片 */
+DataBuf* ImageFileProcess::getOneImage() /*获取 count数量 图片 */
 {
-    if(!m_fileBuffers.empty())
+    DataBuf* pBuf = nullptr;
+    if(!m_readBuffers.empty())
     {
-        buf = m_fileBuffers.front();
-        m_fileBuffers.pop();
-        return OK;
-    }
-    
-    return ERR;
+        pBuf = m_readBuffers.front();
+        m_readBuffers.pop();
+    }    
+    return pBuf;
+}
+
+int ImageFileProcess::writeOneImage(DataBuf* pBuf)
+{
+    m_writeBuffers.push(pBuf);
+    return OK;
 }
 
 int ImageFileProcess::loadSomeImage(int count)
 {
+    vector<string> strList = m_path->getNextFilesList(count);
+    //todo 获取要打开的文件名称
 
-    fileRead(count);
+    for (int i = 0; i < count; i++)
+    {
+        DataBuf * p = fileRead(strList[i]);
+        m_readBuffers.push(p);
+    }
+    
     //m_fileStreams read and update
     return OK;
 }
 
-int ImageFileProcess::fileRead(int count)
+DataBuf* ImageFileProcess::fileRead(string fileName)
 {
     if(count > FILE_MAX_CHCHE_NUM - m_fileBuffers.size())
     {
-        return ERR;
+        return nullptr;
     }
 
-    if(m_path->getLeftFilesList() < count)
+    fstream fs;
+    try
     {
-        count = m_path->getLeftFilesList();
+        fs.open(fileName, fstream::in);
     }
-
-    for (int i = 0; i < count; i++)
+    catch (exception& e)
     {
-        m_fileStreams[i].open("a.img");
-        char* buf = new char(IMAGE_CACHE_SIZE);
-        m_fileBuffers.push_back((uint8*)buf);
-        while (m_fileStreams[i].eof())
+        cerr << e.what() << endl;
+    }
+    fs.seekg(0, fs.end);
+    int length = fs.tellg();
+    fs.seekg(0, fs.beg);
+    DataBuf pBuf = new DataBuf(length);
+    fs.read(pBuf->getData(), length);
+    fs.close();    
+
+    return pBuf;
+}
+
+void ImageFileProcess::fileWrite(DataBuf* pBuf, string fileName)
+{
+    fstream fs;
+    try
+    {
+        fs.open(fileName, fstream::out);
+    }
+    catch (exception& e)
+    {
+        cerr << e.what() << endl;
+    }
+    fs.write(pBuf->getData(), pBuf->getSize());
+    fs.close();    
+
+    return ;
+}
+
+void ImageFileProcess::threadEntry()
+{
+    while(true)
+    {
+        if(m_readBuffers.size() < FILE_MAX_CHCHE_NUM/2)
         {
-            m_fileStreams[i].read(buf, READ_MAX_SIZE);
+            loadSomeImage(FILE_MAX_CHCHE_NUM);
         }
+        if(!m_writeBuffers.empty())
+        {
+            DataBuf* pBuf =  m_writeBuffers.front();
+            fileWrite(pBuf, "a.img");
+        }
+        boost::this_thread::sleep(boost::chrono::milliseconds(1));
     }
-    
 }
