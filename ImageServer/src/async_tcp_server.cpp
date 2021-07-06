@@ -43,6 +43,7 @@ int AsyncTcpServer::write_time(socket_ptr socket)
     socket->async_write_some(boost::asio::buffer(str), 
         boost::bind(&AsyncTcpServer::handle_write, this, boost::asio::placeholders::error,
         boost::asio::placeholders::bytes_transferred));
+    return 0;
 }
 
 void AsyncTcpServer::handle_write(boost::system::error_code err, size_t len)
