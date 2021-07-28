@@ -44,7 +44,7 @@ public:
 
     ~ImageFileProcess();
 
-    ImageFile_t& getOneImage(); /*获取一张图片 */
+    ImageFile_t getOneImage(); /*获取一张图片 */
 
     int writeOneImage(ImageFile_t &pBuf);
    

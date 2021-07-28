@@ -25,7 +25,7 @@ void ImageFileProcess::run()
     m_thread->join();
 }
 
-ImageFile_t& ImageFileProcess::getOneImage() /*获取 count数量 图片 */
+ImageFile_t ImageFileProcess::getOneImage() /*获取 count数量 图片 */
 {
     ImageFile_t pBuf;
     if(!m_readBuffers.empty())

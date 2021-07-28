@@ -85,6 +85,7 @@ void test_path_proc()
     cout << endl;
 }
 
+using namespace boost::asio;
 int main()
 {
     // try{
@@ -96,6 +97,5 @@ int main()
     //     std::cerr << e.what() << std::endl;
     // }
 
-    test_data_buf();
     return 0;
 }
